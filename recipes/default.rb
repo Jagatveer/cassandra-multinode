@@ -51,7 +51,7 @@ directory node['cassandra']['conf_dir'] do
 end
 
 execute 'ready_filesystem' do
-  command 'sudo mkfs -t ext4 #{node['cassandra']['mountdevice']}'
+  command "sudo mkfs -t ext4 #{node['cassandra']['mountdevice']}"
   action :run
   only_if { to_install == true }
 end
@@ -91,30 +91,27 @@ node['cassandra']['src_deps'].each do |pkg|
   package pkg
 end
 
-#%w(gcc libev4 libev-dev python-dev dsc30 cassandra-tools).each do |pkg|
-#    package pkg do
-#      action :install
-#  end
-#end
-
-execute 'cassandra-cluster' do
+execute 'cleanup_for_install' do
   command <<-EOF
   sudo service cassandra stop
   sleep 10
   sudo rm -rf /var/lib/cassandra/data/system/*
-  sudo sed -i "s/cluster_name: 'Test Cluster'/cluster_name: 'jagat_cassandra_cluster'/g" /etc/cassandra/cassandra.yaml
-  sudo sed -i "s/seeds: \"127.0.0.1\"/seeds: \"#{node['cassandra']['node1']},#{node['cassandra']['node2']}\"/g" /etc/cassandra/cassandra.yaml
-  sudo sed -i "s/listen_address: localhost/listen_address:/g" /etc/cassandra/cassandra.yaml
-  sudo sed -i "s/rpc_address: localhost/rpc_address: 0.0.0.0/g" /etc/cassandra/cassandra.yaml
   EOF
   action :run
   only_if { to_install == true }
 end
 
-execute 'node-setup' do
-  command 'sudo sed -i "s/# broadcast_rpc_address: 1.2.3.4/broadcast_rpc_address: #{node['cassandra']['nodeip']}/g" /etc/cassandra/cassandra.yaml'
-  action :run
-  only_if { to_install == true }
+template node['cassandra']['conf_dir'] + '/cassandra.yaml' do
+  source 'cassandra.yaml.erb'
+  owner node['cassandra']['user']
+  mode '0644'
+  variables('cluster_name' => node['cassandra']['conf']['cluster_name'],
+            'rpc_address' => node['cassandra']['conf']['rpc_address'],
+            'nodeip' => node['cassandra']['conf']['nodeip'],
+            'node1' => node['cassandra']['conf']['node1'],
+            'node2' => node['cassandra']['conf']['node2']
+           )
+  notifies :start, 'service[cassandra]'
 end
 
 service 'cassandra' do
