@@ -15,13 +15,20 @@ else
   to_install = true
 end
 
-#apt_repository "datastax" do
-#  uri          "http://debian.datastax.com/community"
-#  distribution "stable"
-#  components   ["main"]
-#  key          "http://debian.datastax.com/debian/repo_key"
-#  action :add
-#end
+apt_repository "datastax" do
+  uri          "http://debian.datastax.com/community"
+  distribution "stable"
+  components   ["main"]
+  key          "http://debian.datastax.com/debian/repo_key"
+  action :add
+end
+
+apt_repository "zulu" do
+  uri          "http://repos.azulsystems.com/debian"
+  distribution "stable"
+  components   ["main"]
+  action :add
+end
 
 user node['cassandra']['user'] do
   gid "nogroup"
@@ -60,19 +67,6 @@ mount node['cassandra']['libdir'] do
   device node['cassandra']['mountdevice']
   fstype 'ext4'
   action :mount
-  only_if { to_install == true }
-end
-
-execute 'ready_repos' do
-  command <<-EOF
-  sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0x219BD9C9
-  apt_source='deb http://repos.azulsystems.com/debian stable main'
-  apt_list='/etc/apt/sources.list.d/zulu.list'
-  echo "$apt_source" | sudo tee "$apt_list" > /dev/null
-  echo "deb http://debian.datastax.com/community stable main" | sudo tee -a /etc/apt/sources.list.d/cassandra.sources.list
-  curl -L https://debian.datastax.com/debian/repo_key | sudo apt-key add -
-  EOF
-  action :run
   only_if { to_install == true }
 end
 
